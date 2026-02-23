@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recunoaștere Emoții - Camera Web</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        #video-stream {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .emotion-display {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .emotion-label {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .emotion-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            text-transform: capitalize;
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confidence {
+            font-size: 1.5em;
+            color: #764ba2;
+            font-weight: 600;
+        }
+
+        .emotion-icons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .emotion-icon {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            min-width: 100px;
+        }
+
+        .emotion-icon:hover {
+            transform: translateY(-5px);
+        }
+
+        .emotion-icon.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .icon {
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+
+        .icon-label {
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            margin-top: 20px;
+            color: #2e7d32;
+            font-weight: 500;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Recunoaștere Emoții</h1>
+            <p>Detectare în timp real folosind AI</p>
+        </div>
+
+        <div class="content">
+            <div class="video-container">
+                <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
+            </div>
+
+            <div class="emotion-display">
+                <div class="emotion-label">Emoție detectată:</div>
+                <div class="emotion-value" id="emotion-text">Se încarcă...</div>
+                <div class="confidence" id="confidence-text">--</div>
+
+                <div class="emotion-icons">
+                    <div class="emotion-icon" data-emotion="angry">
+                        <div class="icon">😠</div>
+                        <div class="icon-label">Furie</div>
+                    </div>
+                    <div class="emotion-icon" data-emotion="disgust">
+                        <div class="icon">🤢</div>
+                        <div class="icon-label">Frica</div>
+                    </div>
+                    <div class="emotion-icon" data-emotion="fear">
+                        <div class="icon">😄</div>
+                        <div class="icon-label">Fericire</div>
+                    </div>
+                    <div class="emotion-icon" data-emotion="happy">
+                        <div class="icon">😢</div>
+                        <div class="icon-label">Tristete</div>
+                    </div>
+                    <div class="emotion-icon" data-emotion="sad">
+                        <div class="icon">😨</div>
+                        <div class="icon-label">Surprindere</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status">
+                <span id="status">🟢 Sistem activ - Camera web conectată</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Actualizează emoția la fiecare 500ms
+        function updateEmotion() {
+            fetch('/emotion')
+                .then(response => response.json())
+                .then(data => {
+                    const emotionText = document.getElementById('emotion-text');
+                    const confidenceText = document.getElementById('confidence-text');
+
+                    // Traduceri pentru emoții
+                    const translations = {
+                        'angry': 'Angry',
+                        'fear': 'Fear',
+                        'happy': 'Happy',
+                        'sad': 'Sad',
+                        'surprise': 'Surprise',
+                        'Nicio față detectată': 'Nicio față detectată'
+                    };
+
+                    emotionText.textContent = translations[data.emotion] || data.emotion;
+
+                    if (data.confidence > 0) {
+                        confidenceText.textContent = `Încredere: ${data.confidence}%`;
+                    } else {
+                        confidenceText.textContent = 'Caută față...';
+                    }
+
+                    // Actualizează icon-urile active
+                    document.querySelectorAll('.emotion-icon').forEach(icon => {
+                        icon.classList.remove('active');
+                        if (icon.dataset.emotion === data.emotion) {
+                            icon.classList.add('active');
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Eroare la actualizarea emoției:', error);
+                });
+        }
+
+        // Începe actualizarea
+        setInterval(updateEmotion, 500);
+        updateEmotion(); // Apel inițial
+    </script>
+</body>
+</html>
